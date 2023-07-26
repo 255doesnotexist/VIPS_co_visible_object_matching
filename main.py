@@ -1,9 +1,10 @@
-# main.py
+import numpy as np
+import os
 
 from graph import Graph
 from node import Node
 from edge import Edge
-from affinity import calculate_node_affinity, calculate_edge_affinity
+from affinity import calculate_node_similarity, calculate_edge_similarity
 from matrix import create_affinity_matrix
 from matching import find_optimal_matching
 from utils import threshold_matching_results
@@ -44,18 +45,22 @@ def transformed_boxes(car_from_global, ref_from_car, pred_boxes):
 
 def main(car1, car2):
     # Step 1: Construct graphs G𝑉 and G𝐼
-    G𝑉 = Graph()
-    G𝐼 = Graph()
+    G1 = Graph()
+    G2 = Graph()
 
     # Step 2: Define node and edge attributes
-    # ...
-
-    # Step 3: Calculate node and edge affinity
-    calculate_node_affinity(G𝑉)
-    calculate_edge_affinity(G𝑉)
+    for i in range(len(car1['category'])):
+        G1.add_node(i, category=car1['category'][i], position=car1['position'][i], 
+                    bounding_box=car1['bounding_box'][i], world_position=car1['world_position'][i],
+                    heading=car1['heading'][i])
+        
+    for i in range(len(car2['category'])):
+        G1.add_node(i, category=car2['category'][i], position=car2['position'][i], 
+                    bounding_box=car2['bounding_box'][i], world_position=car2['world_position'][i],
+                    heading=car2['heading'][i])
 
     # Step 4: Create affinity matrix
-    M = create_affinity_matrix(G𝑉)
+    M = create_affinity_matrix(G1, G2)
 
     # Step 5: Solve graph matching problem
     matching_results = find_optimal_matching(M)
@@ -83,12 +88,10 @@ if __name__ == '__main__':
         matrix_dis = None
         for key, value in data.items():
             if key.startswith('id_'):
-                boxes.append(value['pred_boxes'])
                 transformed_boxes_ret = transformed_boxes(value['car_from_global'], value['ref_from_car'], value['pred_boxes'])
-                world_boxes.append(transformed_boxes_ret[:, [0, 1, 2, 4, 5, 3, 6]])
-                cars.append({id: key, categories: value['pred_labels'], 
-                    bounding_boxes: value['pred_boxes'][:, [3, 4, 5]], positions: value['pred_boxes'][:, [0, 1, 2]],
-                    world_positions: transformed_boxes_ret[:, [0, 1, 2]], headings: transformed_boxes_ret[:, [6]]})
+                cars.append(**{'id': key, 'category': value['pred_labels'], 
+                    'bounding_box': value['pred_boxes'][:, [3, 4, 5]], 'position': value['pred_boxes'][:, [0, 1, 2]],
+                    'world_position': transformed_boxes_ret[:, [0, 1, 2]], 'heading': transformed_boxes_ret[:, [6]]})
             if key == 'matrix_iou':
                 matrix_iou = value
             if key == 'matrix_dis':

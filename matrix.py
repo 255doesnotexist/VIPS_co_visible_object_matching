@@ -1,5 +1,3 @@
-# matrix.py
-
 import numpy as np
 
 def create_affinity_matrix(graph):

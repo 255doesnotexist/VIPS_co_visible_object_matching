@@ -1,25 +1,5 @@
 import numpy as np
 
-def calculate_node_affinity(graph):
-    nodes = graph.get_nodes()
-    for i in range(len(nodes)):
-        for j in range(i+1, len(nodes)):
-            node1 = nodes[i]
-            node2 = nodes[j]
-            affinity = calculate_node_similarity(node1, node2)
-            node1.set_affinity(node2, affinity)
-            node2.set_affinity(node1, affinity)
-
-def calculate_edge_affinity(graph):
-    edges = graph.get_edges()
-    for i in range(len(edges)):
-        for j in range(i+1, len(edges)):
-            edge1 = edges[i]
-            edge2 = edges[j]
-            affinity = calculate_edge_similarity(edge1, edge2)
-            edge1.set_affinity(edge2, affinity)
-            edge2.set_affinity(edge1, affinity)
-
 # M[i][i_prime][i][i_prime]
 def calculate_node_similarity(node1, node2):
     # Calculate node similarity based on attributes
