@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.optimize import maximaze
 import os
 
 from graph import Graph
@@ -8,6 +9,41 @@ from affinity import calculate_node_similarity, calculate_edge_similarity
 from matrix import create_affinity_matrix
 from matching import find_optimal_matching
 from utils import threshold_matching_results
+
+def main(car1, car2):
+    # Step 1: Construct graphs
+    G1 = Graph()
+    G2 = Graph()
+
+    # Step 2: Define node and edge attributes
+    for i in range(len(car1['category'])):
+        G1.add_node(i, category=car1['category'][i], position=car1['position'][i], 
+                    bounding_box=car1['bounding_box'][i], world_position=car1['world_position'][i],
+                    heading=car1['heading'][i])
+        
+    for i in range(len(car2['category'])):
+        G1.add_node(i, category=car2['category'][i], position=car2['position'][i], 
+                    bounding_box=car2['bounding_box'][i], world_position=car2['world_position'][i],
+                    heading=car2['heading'][i])
+
+    # Step 3: Create affinity matrix
+    M = create_affinity_matrix(G1, G2)
+    
+    w = np.eye(2)
+    args_fun = lambda w: w.T * M * w
+    w_a = maximaze(args_fun, w, method='', constraints={'type': 'eq', 'fun': lambda w: np.square(np.norm(w)) == 1})
+
+    # Step 4: Solve graph matching problem
+    matching_results = find_optimal_matching(M, w_a)
+
+    # Step 5: Threshold matching results
+    thresholded_results = threshold_matching_results(matching_results, threshold=0.5)
+
+    # Print the final matching results
+    for node_pair in thresholded_results:
+        print(f"Matched nodes: {node_pair[0].id} and {node_pair[1].id}")
+
+    return thresholded_results
 
 def transformed_boxes(car_from_global, ref_from_car, pred_boxes):
     # 将前三个位置和第七个位置分别提取出来
@@ -42,37 +78,6 @@ def transformed_boxes(car_from_global, ref_from_car, pred_boxes):
         (transformed_positions, pred_boxes[:, 3:6], transformed_rotation[:, np.newaxis], transformed_velocity), axis=1)
 
     return transformed_boxes
-
-def main(car1, car2):
-    # Step 1: Construct graphs G𝑉 and G𝐼
-    G1 = Graph()
-    G2 = Graph()
-
-    # Step 2: Define node and edge attributes
-    for i in range(len(car1['category'])):
-        G1.add_node(i, category=car1['category'][i], position=car1['position'][i], 
-                    bounding_box=car1['bounding_box'][i], world_position=car1['world_position'][i],
-                    heading=car1['heading'][i])
-        
-    for i in range(len(car2['category'])):
-        G1.add_node(i, category=car2['category'][i], position=car2['position'][i], 
-                    bounding_box=car2['bounding_box'][i], world_position=car2['world_position'][i],
-                    heading=car2['heading'][i])
-
-    # Step 4: Create affinity matrix
-    M = create_affinity_matrix(G1, G2)
-
-    # Step 5: Solve graph matching problem
-    matching_results = find_optimal_matching(M)
-
-    # Step 6: Threshold matching results
-    thresholded_results = threshold_matching_results(matching_results, threshold=0.5)
-
-    # Print the final matching results
-    for node_pair in thresholded_results:
-        print(f"Matched nodes: {node_pair[0].id} and {node_pair[1].id}")
-
-    return thresholded_results
 
 if __name__ == '__main__':
     incorrect_matching = 0

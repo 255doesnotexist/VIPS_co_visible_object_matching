@@ -1,5 +1,3 @@
-# matching.py
-
 from matrix import create_affinity_matrix
 from utils import threshold_matching_results
 

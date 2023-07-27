@@ -23,8 +23,8 @@ def calculate_edge_similarity(edge1, edge2):
     lambda_3 = 0.5
     lambda_4 = 0.1
     # according to original paper, they set them pirically 0.5 and 0.1 and we do as so
-    g_1_i_ip_j_jp = ((edge1.get_node1().category == edge2.get_node1().category) + (edge1.get_node2().category == edge2.get_node2().category))
-    g_2_i_ip_j_jp = np.exp(-lambda_3 * np.square(np.norm(edge1.get_node1().position - edge1.get_node2().position) - np.norm(edge2.get_node1().position - edge2.get_node2().position)))
+    g_1_i_ip_j_jp = ((edge1.get_node1().category == edge2.get_node1().category) and (edge1.get_node2().category == edge2.get_node2().category))
+    g_2_i_ip_j_jp = np.exp(-lambda_3 * np.linalg.norm(edge1.get_node1().position - edge1.get_node2().position) - np.linalg.norm(edge2.get_node1().position - edge2.get_node2().position))
     g_3_i_ip_j_jp = np.exp(-lambda_4 * np.norm(np.sin(edge1.get_node1().heading - edge1.get_node2().heading) - np.sin(edge2.get_node1().heading - edge2.get_node2().heading)))
 
     miu_3 = 0.5

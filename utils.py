@@ -1,5 +1,3 @@
-# utils.py
-
 def threshold_matching_results(matching_results, threshold):
     thresholded_results = []
     for node_pair in matching_results:
