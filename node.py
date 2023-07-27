@@ -1,5 +1,5 @@
 class Node:
-    def __init__(self, id = None, category, bounding_box, position, world_position, heading):
+    def __init__(self, id, category, bounding_box, position, world_position, heading):
         self.id = id
         self.category = category
         self.bounding_box = bounding_box

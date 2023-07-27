@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.optimize import maximaze
+from scipy.optimize import minimize
 import os
 
 from graph import Graph
@@ -17,21 +17,32 @@ def main(car1, car2):
 
     # Step 2: Define node and edge attributes
     for i in range(len(car1['category'])):
-        G1.add_node(i, category=car1['category'][i], position=car1['position'][i], 
+        G1.add_node(Node(i, category=car1['category'][i], position=car1['position'][i], 
                     bounding_box=car1['bounding_box'][i], world_position=car1['world_position'][i],
-                    heading=car1['heading'][i])
+                    heading=car1['heading'][i]))
         
     for i in range(len(car2['category'])):
-        G1.add_node(i, category=car2['category'][i], position=car2['position'][i], 
+        G2.add_node(Node(i, category=car2['category'][i], position=car2['position'][i], 
                     bounding_box=car2['bounding_box'][i], world_position=car2['world_position'][i],
-                    heading=car2['heading'][i])
+                    heading=car2['heading'][i]))
 
     # Step 3: Create affinity matrix
     M = create_affinity_matrix(G1, G2)
     
-    w = np.eye(2)
-    args_fun = lambda w: w.T * M * w
-    w_a = maximaze(args_fun, w, method='', constraints={'type': 'eq', 'fun': lambda w: np.square(np.norm(w)) == 1})
+    w = np.ones(len(M))
+
+    # 定义目标函数
+    def objective_function(x, A):
+        return -x.T @ A @ x
+
+    # 定义约束条件：||x||^2 - 1 = 0
+    def constraint(x):
+        return np.linalg.norm(x)**2 - 1
+    
+    constraint_eq = {'type': 'eq', 'fun': constraint}
+    w_a = minimize(objective_function, w, args=(M,), method='SLSQP', constraints=constraint_eq)
+
+    print(w_a)
 
     # Step 4: Solve graph matching problem
     matching_results = find_optimal_matching(M, w_a)
@@ -94,7 +105,7 @@ if __name__ == '__main__':
         for key, value in data.items():
             if key.startswith('id_'):
                 transformed_boxes_ret = transformed_boxes(value['car_from_global'], value['ref_from_car'], value['pred_boxes'])
-                cars.append(**{'id': key, 'category': value['pred_labels'], 
+                cars.append({'id': key, 'category': value['pred_labels'], 
                     'bounding_box': value['pred_boxes'][:, [3, 4, 5]], 'position': value['pred_boxes'][:, [0, 1, 2]],
                     'world_position': transformed_boxes_ret[:, [0, 1, 2]], 'heading': transformed_boxes_ret[:, [6]]})
             if key == 'matrix_iou':
