@@ -40,12 +40,16 @@ def main(car1, car2):
         return np.linalg.norm(x)**2 - 1
     
     constraint_eq = {'type': 'eq', 'fun': constraint}
-    w_a = minimize(objective_function, w, args=(M,), method='SLSQP', constraints=constraint_eq)
+    w_a_sol = minimize(objective_function, w, args=(M,), method='SLSQP', constraints=constraint_eq)
+
+    w_a = w_a_sol.x
+    w_a -= np.min(w_a)
+    w_a /= np.max(w_a)
 
     print(w_a)
 
     # Step 4: Solve graph matching problem
-    matching_results = find_optimal_matching(M, w_a)
+    matching_results = find_optimal_matching(M, w_a, len(G1.get_nodes()), len(G2.get_nodes()), threshold=0.5)
 
     # Step 5: Threshold matching results
     thresholded_results = threshold_matching_results(matching_results, threshold=0.5)
