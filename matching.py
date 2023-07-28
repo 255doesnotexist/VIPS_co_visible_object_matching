@@ -12,16 +12,20 @@ def _hung_kernel(s: torch.Tensor, n1=None, n2=None):
     if n2 is None:
         n2 = s.shape[1]
     row, col = opt.linear_sum_assignment(s[:n1, :n2])
-    perm_mat = np.zeros_like(s)
-    perm_mat[row, col] = 1
-    return perm_mat
+    return row, col
 
-def find_optimal_matching(M, w, n, m, threshold):
+def find_optimal_matching(M, w, n, m, threshold = 0.5):
     G = np.ndarray((n,m))
     for i in range(n):
         for j in range(m):
-            if w[i * j] >= threshold:
-                G[i][j] = w[i * j]
-            else:
-                G[i][j] = 0
-    return _hung_kernel(torch.from_numpy(G))
+            G[i][j] = w[i * j]
+
+    row, col = _hung_kernel(torch.from_numpy(G))
+    
+    perm_mat = np.zeros_like(G)
+
+    for k in range(len(row)):
+        if w[row[k] * col[k]] >= threshold:
+            perm_mat[row[k], col[k]] = 1
+    
+    return perm_mat
