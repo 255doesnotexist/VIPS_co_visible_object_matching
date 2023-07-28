@@ -43,8 +43,8 @@ def main(car1, car2):
     w_a_sol = minimize(objective_function, w, args=(M,), method='SLSQP', constraints=constraint_eq)
 
     w_a = w_a_sol.x
-    # w_a -= np.min(w_a)
-    # w_a /= np.max(w_a)
+    w_a -= np.min(w_a)
+    w_a /= np.max(w_a)
 
     # print(w_a)
 
