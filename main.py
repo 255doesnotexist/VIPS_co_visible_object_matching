@@ -33,7 +33,7 @@ def main(car1, car2):
 
     # 定义目标函数
     def objective_function(x, A):
-        return -x.T @ A @ x
+        return -(x.T @ A @ x)
 
     # 定义约束条件：||x||^2 - 1 = 0
     def constraint(x):
@@ -43,22 +43,16 @@ def main(car1, car2):
     w_a_sol = minimize(objective_function, w, args=(M,), method='SLSQP', constraints=constraint_eq)
 
     w_a = w_a_sol.x
-    w_a -= np.min(w_a)
-    w_a /= np.max(w_a)
+    # w_a -= np.min(w_a)
+    # w_a /= np.max(w_a)
 
-    print(w_a)
+    # print(w_a)
 
     # Step 4: Solve graph matching problem
     matching_results = find_optimal_matching(M, w_a, len(G1.get_nodes()), len(G2.get_nodes()), threshold=0.5)
+    # print(matching_results)
 
-    # Step 5: Threshold matching results
-    thresholded_results = threshold_matching_results(matching_results, threshold=0.5)
-
-    # Print the final matching results
-    for node_pair in thresholded_results:
-        print(f"Matched nodes: {node_pair[0].id} and {node_pair[1].id}")
-
-    return thresholded_results
+    return matching_results
 
 def transformed_boxes(car_from_global, ref_from_car, pred_boxes):
     # 将前三个位置和第七个位置分别提取出来
@@ -129,6 +123,6 @@ if __name__ == '__main__':
                         undiscoverd_matching += 1
                 total_matching += 1
 
-        print(f"Incoorrect matching: {incorrect_matching}")
+        print(f"Incorrect matching: {incorrect_matching}")
         print(f"Undiscoverd matching: {undiscoverd_matching}")
         print(f"Total matching: {total_matching}")
