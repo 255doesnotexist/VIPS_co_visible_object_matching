@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.optimize import minimize
 import os
+import jsonlines
+import ast
 
 from graph import Graph
 from node import Node
@@ -89,9 +91,22 @@ def transformed_boxes(car_from_global, ref_from_car, pred_boxes):
     return transformed_boxes
 
 if __name__ == '__main__':
-    incorrect_matching = 0
-    undiscoverd_matching = 0
+    # incorrect_matching = 0
+    # undiscoverd_matching = 0
+    correct_matching = 0
     total_matching = 0
+    boxes_count = 0
+    covisible_boxes_count = 0
+
+    in_path_pair = "./new_sweeps/val.json"
+    pair_data = []
+    with jsonlines.open(in_path_pair) as pairs:
+        pair_data = [ast.literal_eval(pair) for pair in list(pairs)]
+
+    pair_map = dict()
+    for i in range(len(pair_data)):
+        pair_map[pair_data[i]['file'] + ", " + pair_data[i]['src'] + ", " + pair_data[i]['dest']] = pair_data[i]['match_matrix']
+    # print(pair_data)
 
     for filename in os.listdir('./new_sweeps/'):
     # for filename in ['scene_100_000026.npy']:
@@ -106,23 +121,60 @@ if __name__ == '__main__':
                 cars.append({'id': key, 'category': value['pred_labels'], 
                     'bounding_box': value['pred_boxes'][:, [3, 4, 5]], 'position': value['pred_boxes'][:, [0, 1, 2]],
                     'world_position': transformed_boxes_ret[:, [0, 1, 2]], 'heading': transformed_boxes_ret[:, [6]]})
-            if key == 'matrix_iou':
+            if key == 'iou_matrix':
                 matrix_iou = value
-            if key == 'matrix_dis':
+            if key == 'dist_matrix':
                 matrix_dis = value
         # print(cars)
         # print(matrix_iou)
         # print(matrix_dis)
         for i in range(len(cars)):
             for j in range(i + 1, len(cars)):
-                if i != j:
-                    matching = main(cars[i], cars[j])
-                    if len(matching) > 0 and matrix_iou[i][j] == 0:
-                        incorrect_matching += 1
-                    if len(matching) == 0 and matrix_iou[i][j] > 0:
-                        undiscoverd_matching += 1
-                total_matching += 1
+                if matrix_iou[i][j] == 0:
+                    continue
 
-        print(f"Incorrect matching: {incorrect_matching}")
-        print(f"Undiscoverd matching: {undiscoverd_matching}")
+                key = filename + ", " + (f"id_{i}") + ", " + (f"id_{j}")
+                if key in pair_map:
+                    matrix = pair_map[key]
+                else:
+                    matrix = None
+
+                if i != j:
+                    matching = np.array(np.where(np.array(main(cars[i], cars[j]))==1)).transpose()
+                    
+                    gt_matching = np.array(np.where(np.array(matrix)==1)).transpose()
+
+                    valid = 0
+
+                    for ii in range(len(gt_matching)):
+                        found = False
+                        for jj in range(len(matching)):
+                            if np.array_equal(gt_matching[ii], matching[jj]):
+                                found = True
+                        if found:
+                            valid += 1
+
+                    if valid == len(gt_matching):
+                        correct_matching += 1
+
+                    # valid = 0
+                    # for k in range(len(matching)):
+                    #     pair = matching[k]
+                    #     if matrix[pair[0]][pair[1]] >= 0.9:
+                    #         valid += 1
+                    # if valid == int(np.sum(matrix)):
+                    #     correct_matching += 1
+
+                    total_matching += 1
+
+                    covisible_boxes_count += np.sum(matrix)
+                    boxes_count += len(cars[i]['category']) + len(cars[j]['category'])
+
+                    print(f"Current co-visible rate: {np.sum(matrix) / (len(cars[i]['category']) + len(cars[j]['category']))}")
+
+        # print(f"Incorrect matching: {incorrect_matching}")
+        # print(f"Undiscoverd matching: {undiscoverd_matching}")
+        print(f"Average co-visible rate: {covisible_boxes_count / boxes_count*100}%")
+        print(f"Correct matching: {correct_matching}")
         print(f"Total matching: {total_matching}")
+        print(f"Accuracy: {correct_matching / total_matching*100}%")
