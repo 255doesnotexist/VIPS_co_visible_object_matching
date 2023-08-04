@@ -61,7 +61,7 @@ def create_affinity_matrix(N1=np.array([[]]), N2=np.array([[]]), L1=np.int32, L2
     #         else:
     #             M[i * L2 + i_prime, j * L2 + j_prime] = af.calculate_edge_similarity(
     #                 N1[i], N1[j], N2[i_prime], N2[j_prime])
-    
+
     for i in prange(len_N1):
         for j in prange(len_N1):
             for i_prime in prange(len_N2):
