@@ -3,6 +3,7 @@ from scipy.optimize import minimize
 import os
 import jsonlines
 import ast
+import numba as nb
 
 from match_seq import construct_similarity_tree
 from tqdm import tqdm
@@ -45,7 +46,11 @@ def main(car1, car2):
     def constraint(x):
         return np.linalg.norm(x)**2 - 1
 
-    constraint_eq = {'type': 'eq', 'fun': constraint}
+    # Compile the objective and constraint functions
+    objective_function_jit = nb.jit(objective_function, nopython=True)
+    constraint_jit = nb.jit(constraint, nopython=True)
+
+    constraint_eq = {'type': 'eq', 'fun': constraint_jit}
     w_a_sol = minimize(objective_function, w, args=(M,), method='SLSQP', constraints=constraint_eq)
     # print(w_a_sol)
 
@@ -59,13 +64,6 @@ def main(car1, car2):
     # Step 4: Solve graph matching problem
     matching_results = find_optimal_matching(w_a, L1, L2, threshold=0.5)
     # print(matching_results)
-
-    del G1
-    del G2
-    del w
-    del M
-    del w_a
-    del w_a_sol
 
     return matching_results
 
@@ -124,7 +122,7 @@ if __name__ == '__main__':
 
     for filename in tqdm(os.listdir('./new_sweeps/')):
         cnt += 1
-        if cnt >= 8: break
+        if cnt >= 10: break
         
     #     print(f"Now processing {filename}")
         data = np.load(os.path.join("./new_sweeps/", filename), allow_pickle=True).item()

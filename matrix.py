@@ -4,9 +4,10 @@ import numpy as np
 import sys
 from numba import jit
 import numba as nb
+from numba import cuda
 
 # M[i][i_prime][i][i_prime]
-@jit(nopython=True)
+@nb.njit()
 def calculate_node_similarity(N1=np.array([]), N2=np.array([])):
     # Calculate node similarity based on attributes
     lambda_1 = 0.5
@@ -25,7 +26,7 @@ def calculate_node_similarity(N1=np.array([]), N2=np.array([])):
 
 
 # M[i][i_prime][j][j_prime]
-@jit(nopython=True)
+@nb.njit()
 def calculate_edge_similarity(e1n1=np.array([]), e1n2=np.array([]), e2n1=np.array([]), e2n2=np.array([])):
     # Calculate edge similarity based on attributes
     lambda_3 = 0.5
@@ -48,8 +49,8 @@ def calculate_edge_similarity(e1n1=np.array([]), e1n2=np.array([]), e2n1=np.arra
     return g_1_i_ip_j_jp * (miu_3 * g_2_i_ip_j_jp + miu_4 * g_3_i_ip_j_jp)
 
 
-@jit(nopython=True)
-def create_affinity_matrix(N1=np.array([[]]), N2=np.array([[]]), L1=np.float64, L2=np.float64):
+@nb.njit(parallel=True)
+def create_affinity_matrix(N1=np.array([[]]), N2=np.array([[]]), L1=np.int32, L2=np.int32):
     M = np.zeros((L1 * L2, L1 * L2))
     len_N1 = L1
     len_N2 = L2
@@ -66,12 +67,12 @@ def create_affinity_matrix(N1=np.array([[]]), N2=np.array([[]]), L1=np.float64, 
         for j in range(len_N1):
             for i_prime in range(len_N2):
                 for j_prime in range(len_N2):
-    # for (i, j), (i_prime, j_prime) in product(product(range(len_N1), repeat=2), product(range(len_N2), repeat=2)):
-                    if (i == j and i_prime == j_prime):
-                        M[i * L2 + i_prime, j * L2 + j_prime] = calculate_node_similarity(
-                            N1[i], N2[i_prime])
-                    else:
-                        M[i * L2 + i_prime, j * L2 + j_prime] = calculate_edge_similarity(
-                            N1[i], N1[j], N2[i_prime], N2[j_prime])
+                    M[i * L2 + i_prime, j * L2 + j_prime] = calculate_edge_similarity(
+                        N1[i], N1[j], N2[i_prime], N2[j_prime])
+
+    for i in range(len_N1):
+        for i_prime in range(len_N2):
+            M[i * L2 + i_prime, i * L2 + i_prime] = calculate_node_similarity(
+                N1[i], N2[i_prime])
 
     return M
