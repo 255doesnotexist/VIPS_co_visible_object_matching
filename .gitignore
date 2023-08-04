@@ -3,3 +3,4 @@ new_sweeps/
 __pycache__/
 *.npy
 *.pyc
+.idea/
