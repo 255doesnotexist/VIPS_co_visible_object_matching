@@ -2,9 +2,8 @@ from itertools import product
 
 import numpy as np
 import sys
-from numba import jit
+from numba import jit, prange
 import numba as nb
-from numba import cuda
 
 # M[i][i_prime][i][i_prime]
 @nb.njit()
@@ -62,16 +61,16 @@ def create_affinity_matrix(N1=np.array([[]]), N2=np.array([[]]), L1=np.int32, L2
     #         else:
     #             M[i * L2 + i_prime, j * L2 + j_prime] = af.calculate_edge_similarity(
     #                 N1[i], N1[j], N2[i_prime], N2[j_prime])
-
-    for i in range(len_N1):
-        for j in range(len_N1):
-            for i_prime in range(len_N2):
-                for j_prime in range(len_N2):
+    
+    for i in prange(len_N1):
+        for j in prange(len_N1):
+            for i_prime in prange(len_N2):
+                for j_prime in prange(len_N2):
                     M[i * L2 + i_prime, j * L2 + j_prime] = calculate_edge_similarity(
                         N1[i], N1[j], N2[i_prime], N2[j_prime])
 
-    for i in range(len_N1):
-        for i_prime in range(len_N2):
+    for i in prange(len_N1):
+        for i_prime in prange(len_N2):
             M[i * L2 + i_prime, i * L2 + i_prime] = calculate_node_similarity(
                 N1[i], N2[i_prime])
 

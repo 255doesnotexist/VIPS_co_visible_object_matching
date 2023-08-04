@@ -39,18 +39,16 @@ def main(car1, car2):
     w = np.zeros(len(M))
 
     # 定义目标函数
-    def objective_function(x, A):
+    @nb.njit()
+    def objective_function(x=np.array([]), A=np.array([[]])):
         return -(x.T @ A @ x)
 
     # 定义约束条件：||x||^2 - 1 = 0
-    def constraint(x):
+    @nb.njit()
+    def constraint(x=np.array([])):
         return np.linalg.norm(x)**2 - 1
 
-    # Compile the objective and constraint functions
-    objective_function_jit = nb.jit(objective_function, nopython=True)
-    constraint_jit = nb.jit(constraint, nopython=True)
-
-    constraint_eq = {'type': 'eq', 'fun': constraint_jit}
+    constraint_eq = {'type': 'eq', 'fun': constraint}
     w_a_sol = minimize(objective_function, w, args=(M,), method='SLSQP', constraints=constraint_eq)
     # print(w_a_sol)
 
@@ -122,7 +120,7 @@ if __name__ == '__main__':
 
     for filename in tqdm(os.listdir('./new_sweeps/')):
         cnt += 1
-        if cnt >= 10: break
+        # if cnt >= 10: break
         
     #     print(f"Now processing {filename}")
         data = np.load(os.path.join("./new_sweeps/", filename), allow_pickle=True).item()
