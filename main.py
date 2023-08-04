@@ -5,12 +5,11 @@ import jsonlines
 import ast
 
 from graph import Graph
+from match_seq import construct_similarity_tree
 from node import Node
-from edge import Edge
-from affinity import calculate_node_similarity, calculate_edge_similarity
+from tqdm import tqdm
 from matrix import create_affinity_matrix
 from matching import find_optimal_matching
-from utils import threshold_matching_results
 
 def main(car1, car2):
     # Step 1: Construct graphs
@@ -31,7 +30,7 @@ def main(car1, car2):
     # Step 3: Create affinity matrix
     M = create_affinity_matrix(G1, G2)
     
-    w = np.ones(len(M))
+    w = np.zeros(len(M))
 
     # 定义目标函数
     def objective_function(x, A):
@@ -40,19 +39,28 @@ def main(car1, car2):
     # 定义约束条件：||x||^2 - 1 = 0
     def constraint(x):
         return np.linalg.norm(x)**2 - 1
-    
+
     constraint_eq = {'type': 'eq', 'fun': constraint}
     w_a_sol = minimize(objective_function, w, args=(M,), method='SLSQP', constraints=constraint_eq)
+    # print(w_a_sol)
 
     w_a = w_a_sol.x
     w_a -= np.min(w_a)
     w_a /= np.max(w_a)
 
     # print(w_a)
+    # print(np.where(w_a > 0.9))
 
     # Step 4: Solve graph matching problem
-    matching_results = find_optimal_matching(M, w_a, len(G1.get_nodes()), len(G2.get_nodes()), threshold=0.5)
+    matching_results = find_optimal_matching(w_a, len(G1.get_nodes()), len(G2.get_nodes()), threshold=0.5)
     # print(matching_results)
+
+    del G1
+    del G2
+    del w
+    del M
+    del w_a
+    del w_a_sol
 
     return matching_results
 
@@ -106,75 +114,66 @@ if __name__ == '__main__':
     pair_map = dict()
     for i in range(len(pair_data)):
         pair_map[pair_data[i]['file'] + ", " + pair_data[i]['src'] + ", " + pair_data[i]['dest']] = pair_data[i]['match_matrix']
-    # print(pair_data)
 
-    for filename in os.listdir('./new_sweeps/'):
-    # for filename in ['scene_100_000026.npy']:
-        print(f"Now processing {filename}")
+    cnt = 0
+
+    for filename in tqdm(os.listdir('./new_sweeps/')):
+        cnt += 1
+        if cnt >=10: break
+        
+    #     print(f"Now processing {filename}")
         data = np.load(os.path.join("./new_sweeps/", filename), allow_pickle=True).item()
         cars = []
-        matrix_iou = None
-        matrix_dis = None
+
+        simi = data['simi_matrix']
+        matrix_simi = simi + simi.T
+        simi_tree = construct_similarity_tree(0, matrix_simi)
+
         for key, value in data.items():
             if key.startswith('id_'):
                 transformed_boxes_ret = transformed_boxes(value['car_from_global'], value['ref_from_car'], value['pred_boxes'])
                 cars.append({'id': key, 'category': value['pred_labels'], 
                     'bounding_box': value['pred_boxes'][:, [3, 4, 5]], 'position': value['pred_boxes'][:, [0, 1, 2]],
                     'world_position': transformed_boxes_ret[:, [0, 1, 2]], 'heading': transformed_boxes_ret[:, [6]]})
-            if key == 'iou_matrix':
-                matrix_iou = value
-            if key == 'dist_matrix':
-                matrix_dis = value
-        # print(cars)
-        # print(matrix_iou)
-        # print(matrix_dis)
-        for i in range(len(cars)):
-            for j in range(i + 1, len(cars)):
-                if matrix_iou[i][j] == 0:
-                    continue
 
-                key = filename + ", " + (f"id_{i}") + ", " + (f"id_{j}")
-                if key in pair_map:
-                    matrix = pair_map[key]
-                else:
-                    matrix = None
+        for pair in simi_tree:
+            src, dest = pair[0], pair[1]
+            key = filename + ", " + (f"id_{src}") + ", " + (f"id_{dest}")
+            if key in pair_map:
+                matrix = pair_map[key]
+            else:
+                matrix = None
 
-                if i != j:
-                    matching = np.array(np.where(np.array(main(cars[i], cars[j]))==1)).transpose()
-                    
-                    gt_matching = np.array(np.where(np.array(matrix)==1)).transpose()
+            matching = main(cars[src], cars[dest])
+            gt_matching = np.array(np.where(np.array(matrix) == 1)).transpose()
+            # print(matching, '\n', gt_matching)
 
-                    valid = 0
+            valid = 0
 
-                    for ii in range(len(gt_matching)):
-                        found = False
-                        for jj in range(len(matching)):
-                            if np.array_equal(gt_matching[ii], matching[jj]):
-                                found = True
-                        if found:
-                            valid += 1
+            for ii in range(len(gt_matching)):
+                found = False
+                for jj in range(len(matching)):
+                    if np.array_equal(gt_matching[ii], matching[jj]):
+                        found = True
+                if found:
+                    valid += 1
 
-                    if valid == len(gt_matching):
-                        correct_matching += 1
+            if len(gt_matching) >= valid >= 2:
+                correct_matching += 1
 
-                    # valid = 0
-                    # for k in range(len(matching)):
-                    #     pair = matching[k]
-                    #     if matrix[pair[0]][pair[1]] >= 0.9:
-                    #         valid += 1
-                    # if valid == int(np.sum(matrix)):
-                    #     correct_matching += 1
 
-                    total_matching += 1
+            total_matching += 1
+            # print(correct_matching, ' ', total_matching)
 
-                    covisible_boxes_count += np.sum(matrix)
-                    boxes_count += len(cars[i]['category']) + len(cars[j]['category'])
+            covisible_boxes_count += np.sum(matrix)
+            boxes_count += len(cars[src]) + len(cars[dest])
 
-                    print(f"Current co-visible rate: {np.sum(matrix) / (len(cars[i]['category']) + len(cars[j]['category']))}")
+            # print(f"Current co-visible rate: {np.sum(matrix) / (len(boxes[i]) + len(boxes[j]))}")
 
-        # print(f"Incorrect matching: {incorrect_matching}")
-        # print(f"Undiscoverd matching: {undiscoverd_matching}")
-        print(f"Average co-visible rate: {covisible_boxes_count / boxes_count*100}%")
-        print(f"Correct matching: {correct_matching}")
-        print(f"Total matching: {total_matching}")
-        print(f"Accuracy: {correct_matching / total_matching*100}%")
+    # print(f"Incorrect matching: {incorrect_matching}")
+    # print(f"Undiscoverd matching: {undiscoverd_matching}")
+    print(f"Average co-visible rate: {(covisible_boxes_count / boxes_count) * 100:.2f}%")
+    print(f"Correct matching: {correct_matching}")
+    print(f"Total matching: {total_matching}")
+    print(f"Accuracy: {(correct_matching / total_matching) * 100:.2f}%")
+
