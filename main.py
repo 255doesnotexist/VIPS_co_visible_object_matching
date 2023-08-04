@@ -4,6 +4,7 @@ import os
 import jsonlines
 import ast
 import numba as nb
+import glob
 
 from match_seq import construct_similarity_tree
 from tqdm import tqdm
@@ -119,7 +120,7 @@ if __name__ == '__main__':
     cnt = 0
 
     for filename in tqdm(os.listdir('./new_sweeps/')):
-        
+        if(not filename.endswith('.npy')): continue
     #     print(f"Now processing {filename}")
         data = np.load(os.path.join("./new_sweeps/", filename), allow_pickle=True).item()
         cars = []
@@ -169,13 +170,13 @@ if __name__ == '__main__':
 
             # print(f"Current co-visible rate: {np.sum(matrix) / (len(boxes[i]) + len(boxes[j]))}")
 
+        cnt += 1
         if cnt % 10 == 0:
             print(f"Round {cnt} status:")
             print(f"- Average co-visible rate: {(covisible_boxes_count / boxes_count) * 100:.2f}%")
             print(f"- Correct matching: {correct_matching}")
             print(f"- Total matching: {total_matching}")
             print(f"- Accuracy: {(correct_matching / total_matching) * 100:.2f}%")
-        cnt += 1
 
     # print(f"Incorrect matching: {incorrect_matching}")
     # print(f"Undiscoverd matching: {undiscoverd_matching}")
