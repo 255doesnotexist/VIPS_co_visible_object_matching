@@ -4,31 +4,36 @@ import os
 import jsonlines
 import ast
 
-from graph import Graph
 from match_seq import construct_similarity_tree
-from node import Node
 from tqdm import tqdm
 from matrix import create_affinity_matrix
 from matching import find_optimal_matching
 
 def main(car1, car2):
-    # Step 1: Construct graphs
-    G1 = Graph()
-    G2 = Graph()
+    # Step 0: measure L1 and L2 (length)
+    L1 = len(car1['category'])
+    L2 = len(car2['category'])
+
+    # Step 1: Construct information matrices
+    G1 = np.zeros((L1, 11), dtype=np.float32)
+    G2 = np.zeros((L2, 11), dtype=np.float32)
+    # [0: category, position: 1, 2, 3, bounding_box: 4, 5, 6, world_position: 7, 8, 9, heading: 10]
 
     # Step 2: Define node and edge attributes
-    for i in range(len(car1['category'])):
-        G1.add_node(Node(i, category=car1['category'][i], position=car1['position'][i], 
-                    bounding_box=car1['bounding_box'][i], world_position=car1['world_position'][i],
-                    heading=car1['heading'][i]))
+    for i in range(L1):
+        G1[i]=[car1['category'][i], car1['position'][i][0], car1['position'][i][1], car1['position'][i][2], 
+                    car1['bounding_box'][i][0], car1['bounding_box'][i][1], car1['bounding_box'][i][2],
+                    car1['world_position'][i][0], car1['world_position'][i][1], car1['world_position'][i][2],
+                    car1['heading'][i][0]]
         
-    for i in range(len(car2['category'])):
-        G2.add_node(Node(i, category=car2['category'][i], position=car2['position'][i], 
-                    bounding_box=car2['bounding_box'][i], world_position=car2['world_position'][i],
-                    heading=car2['heading'][i]))
+    for i in range(L2):
+        G2[i]=[car2['category'][i], car2['position'][i][0], car2['position'][i][1], car2['position'][i][2], 
+                    car2['bounding_box'][i][0], car2['bounding_box'][i][1], car2['bounding_box'][i][2],
+                    car2['world_position'][i][0], car2['world_position'][i][1], car2['world_position'][i][2],
+                    car2['heading'][i][0]]
 
     # Step 3: Create affinity matrix
-    M = create_affinity_matrix(G1, G2)
+    M = create_affinity_matrix(G1, G2, L1, L2)
     
     w = np.zeros(len(M))
 
@@ -52,7 +57,7 @@ def main(car1, car2):
     # print(np.where(w_a > 0.9))
 
     # Step 4: Solve graph matching problem
-    matching_results = find_optimal_matching(w_a, len(G1.get_nodes()), len(G2.get_nodes()), threshold=0.5)
+    matching_results = find_optimal_matching(w_a, L1, L2, threshold=0.5)
     # print(matching_results)
 
     del G1
@@ -119,7 +124,7 @@ if __name__ == '__main__':
 
     for filename in tqdm(os.listdir('./new_sweeps/')):
         cnt += 1
-        if cnt >=10: break
+        if cnt >= 8: break
         
     #     print(f"Now processing {filename}")
         data = np.load(os.path.join("./new_sweeps/", filename), allow_pickle=True).item()
